@@ -472,47 +472,55 @@ bool OBD2BLEClient::is_message(OBD2Task &task, const std::string &response_str) 
 }
 
 std::tuple<std::string, std::uint8_t, std::uint8_t, std::string> OBD2BLEClient::split_data(std::string &data_str) {
+  // 1. 移除空格
+  data_str.erase(std::remove(data_str.begin(), data_str.end(), ' '), data_str.end());
+
+  // 2. 核心修复：查找真正的 OBD 响应起始位置，跳过 SEARCHING... 等垃圾信息
+  size_t start_pos = std::string::npos;
   std::uint8_t can_id_length = 0;
-  std::string can_id_str;
-  std::string pci_str;
-  std::uint8_t pci = 0;
-  std::string length_str;
-  std::uint8_t length = 0;
-  std::string response_data_str;
-  if (data_str.size() > 5 && data_str[0] == '7' && data_str[1] == 'E') {
-    can_id_length = 3;
-  } else if (data_str.size() > 10 && (data_str[0] == '1' && (data_str[1] == '8' || data_str[1] == '9'))) {
-    can_id_length = 8;
-  } else {
-    ESP_LOGD(TAG, "No valid CAN ID detected: %s", data_str.c_str());
+
+  // 尝试匹配 11位 ID (7E...) 或 29位 ID (18... / 19...)
+  for (size_t i = 0; i < data_str.size(); i++) {
+    if (data_str[i] == '7' && data_str[i+1] == 'E' && (i + 5 < data_str.size())) {
+      start_pos = i;
+      can_id_length = 3;
+      break;
+    } else if ((data_str[i] == '1' || data_str[i] == '9') && data_str[i+1] == '8' && (i + 10 < data_str.size())) {
+      start_pos = i;
+      can_id_length = 8;
+      break;
+    }
+  }
+
+  if (start_pos == std::string::npos) {
+    ESP_LOGD(TAG, "No valid CAN ID detected in: %s", data_str.c_str());
     return std::make_tuple("", 0, 0, "");
   }
+
+  // 3. 重新截取有效的 OBD 报文部分
+  std::string valid_data = data_str.substr(start_pos);
   
-  can_id_str = data_str.substr(0, can_id_length);
-  if (data_str.size() < can_id_length + 2) {
-    ESP_LOGD(TAG, "Data string too short for PCI: %s", data_str.c_str());
-    return std::make_tuple(can_id_str, 0, 0, "");
-  }
+  std::string can_id_str = valid_data.substr(0, can_id_length);
+  std::string pci_str = valid_data.substr(can_id_length, 2);
   
-  pci_str = data_str.substr(can_id_length, 2);
-  pci = static_cast<std::uint8_t>(std::stoi(pci_str, nullptr, 16));
+  // 4. 解析 PCI
+  std::uint8_t pci = static_cast<std::uint8_t>(std::stoi(pci_str, nullptr, 16));
+  std::uint8_t length = 0;
+  std::string response_data_str;
+
   if (pci <= 0x07) {
     length = pci;
-    response_data_str = data_str.substr(can_id_length + 2);
+    response_data_str = valid_data.substr(can_id_length + 2);
   } else if (pci >= 0x10 && pci <= 0x1F) {
-    if (data_str.size() < can_id_length + 4) {
-      ESP_LOGD(TAG, "Data string too short for First Frame: %s", data_str.c_str());
-      return std::make_tuple(can_id_str, pci, 0, "");
-    }
-    length_str = data_str.substr(can_id_length + 2, 2);
-    length = static_cast<std::uint8_t>(std::stoi(length_str, nullptr, 16));
-    response_data_str = data_str.substr(can_id_length + 4);
-  } else if (pci >= 0x21 && pci <= 0x3F) {
-    response_data_str = data_str.substr(can_id_length + 2);
+    length = static_cast<std::uint8_t>(std::stoi(valid_data.substr(can_id_length + 2, 2), nullptr, 16));
+    response_data_str = valid_data.substr(can_id_length + 4);
+  } else {
+    response_data_str = valid_data.substr(can_id_length + 2);
   }
     
   return std::make_tuple(can_id_str, pci, length, response_data_str);
 }
+
 
 std::vector<uint8_t> OBD2BLEClient::decode_data(const std::string &response_data_str) {
   if (response_data_str.size() % 2 != 0) {
