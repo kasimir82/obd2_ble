@@ -107,14 +107,14 @@ void OBD2BLEClient::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
       ESP_LOGD(TAG, "GATT Search Complete Event");
       auto *write_chr = this->parent_->get_characteristic(this->service_uuid_, this->write_char_uuid_);
       if (write_chr == nullptr) {
-        ESP_LOGE(TAG, "[%s] No write characteristic found at device.", this->parent_->address_str().c_str());
+        ESP_LOGE(TAG, "[%s] No write characteristic found at device.", this->parent_->address_str());
         break;
       }
       this->write_char = write_chr;
 
       auto *notify_chr = this->parent_->get_characteristic(this->service_uuid_, this->notify_char_uuid_);
       if (notify_chr == nullptr) {
-        ESP_LOGE(TAG, "[%s] No notify characteristic found at device.", this->parent_->address_str().c_str());
+        ESP_LOGE(TAG, "[%s] No notify characteristic found at device.", this->parent_->address_str());
         break;
       }
       this->notify_char = notify_chr;
@@ -289,7 +289,7 @@ void OBD2BLEClient::request_write(const std::string &command) {
       ESP_GATT_WRITE_TYPE_RSP,
       ESP_GATT_AUTH_REQ_NONE);
   if (status) {
-    ESP_LOGW(TAG, "[%s] esp_ble_gattc_write_char failed, status=%d", this->parent_->address_str().c_str(), status);
+    ESP_LOGW(TAG, "[%s] esp_ble_gattc_write_char failed, status=%d", this->parent_->address_str(), status);
   }
 }
 
@@ -305,7 +305,7 @@ void OBD2BLEClient::request_read() {
       this->read_char->handle,
       ESP_GATT_AUTH_REQ_NONE);
   if (status) {
-    ESP_LOGW(TAG, "[%s] esp_ble_gattc_read_char failed, status=%d", this->parent_->address_str().c_str(), status);
+    ESP_LOGW(TAG, "[%s] esp_ble_gattc_read_char failed, status=%d", this->parent_->address_str(), status);
   }
 }
 
