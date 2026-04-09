@@ -1,0 +1,231 @@
+substitutions:
+  name: odb2ble
+  device_description: "Monitor and control via bluetooth"
+  external_components_source: github://kasimir82/obd2_ble@main
+  #mac_address: B8:41:76:5C:53:D3 #创酷
+  mac_address: F5:FC:9D:FB:50:64 #奥德赛
+
+esphome:
+  name: odb2ble
+  friendly_name: ODBII to BLE
+  build_path: "../config/esphome/${name}_build"
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+wifi:
+  networks:
+    - ssid: !secret wifi_ssid
+      password: !secret wifi_password
+    - ssid: !secret wifi_ssid_car1
+      password: !secret wifi_password_car
+    - ssid: !secret wifi_ssid_car2
+      password: !secret wifi_password_car
+    - ssid: !secret wifi_ssid_car3
+      password: !secret wifi_password_car
+    - ssid: !secret wifi_ssid_car4
+      password: !secret wifi_password_car  
+  reboot_timeout: 2min
+  power_save_mode: none
+  fast_connect: true
+  output_power: 12
+  
+#ota:
+#  platform: esphome
+
+logger:
+  level: DEBUG
+  logs:
+    esp32_ble_tracker: INFO
+    esp32_ble_client: INFO
+
+#web_server:
+
+mqtt:
+  broker: !secret mqtt_host
+  port: !secret mqtt_port
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  id: mqtt_client
+  discovery: true
+  discovery_retain: true
+  
+esp32_ble_tracker:
+
+ble_client:
+  - mac_address:  ${mac_address}
+    id: ODBII
+
+external_components:
+  - source: ${external_components_source}
+    refresh: 5s
+    #components: [ obd2_ble ]
+
+obd2_ble:
+  id: mycar
+  service_uuid: "0xFFF0"
+  characteristic_uuid:
+    write: "0xFFF2"
+    read: "0xFFF1"
+    notify: "0xFFF1"
+  init_commands: "ATZ ATE0 ATD0 ATH1 ATSP0 ATM0 ATS0 ATAT1 ATST64" # Optional
+  command_delay: 1000 # Optional
+  command_wait: 5000 #Optional
+
+sensor:
+  # PID 04: 发动机计算负荷
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Engine Load"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "04"
+    unit_of_measurement: "%"
+    icon: "mdi:chart-bell-curve-cumulative"
+
+  # PID 05: 发动机水温
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Coolant Temp"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "05"
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer"
+
+  # PID 06: 短期燃油修正 (Bank 1) - 公式: (A-128)*100/128
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Short Term Fuel Trim Bank 1"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "06"
+    unit_of_measurement: "%"
+    icon: "mdi:tune"
+
+  # PID 07: 长期燃油修正 (Bank 1) - 公式: (A-128)*100/128
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Long Term Fuel Trim Bank 1"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "07"
+    unit_of_measurement: "%"
+    icon: "mdi:history"
+
+  # PID 0C: 引擎转速
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Engine RPM"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "0C"
+    unit_of_measurement: "RPM"
+    icon: "mdi:engine"
+
+  # PID 0D: 行驶车速
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Vehicle Speed"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "0D"
+    unit_of_measurement: "km/h"
+    icon: "mdi:speedometer"
+
+  # PID 0E: 点火提前角
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Timing Advance"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "0E"
+    unit_of_measurement: "°"
+    icon: "mdi:flash"
+
+  # PID 0F: 进气温度
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Intake Air Temp"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "0F"
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer-lines"
+
+  # PID 10: MAF 空气流量
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "MAF Air Flow Rate"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "10"
+    unit_of_measurement: "g/s"
+    icon: "mdi:air-filter"
+    accuracy_decimals: 2
+
+  # PID 11: 节气门位置
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Throttle Position"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "11"
+    unit_of_measurement: "%"
+    icon: "mdi:gauge"
+
+  # PID 1F: 发动机启动后运行时间
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Engine Run Time"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "1F"
+    unit_of_measurement: "s"
+    icon: "mdi:timer-outline"
+
+  # PID 2F: 燃油油位
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Fuel Level"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "2F"
+    unit_of_measurement: "%"
+    icon: "mdi:fuel"
+
+  # PID 42: 电瓶电压
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Battery Voltage"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "42"
+    unit_of_measurement: "V"
+    icon: "mdi:battery"
+    accuracy_decimals: 2
+
+  # PID 46: 环境空气温度
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Ambient Air Temp"
+    can_id: "18DAF10E"
+    mode: "01"
+    pid: "46"
+    unit_of_measurement: "°C"
+    icon: "mdi:thermometer"
+
+binary_sensor:
+  - platform: obd2_ble
+    obd2_ble_id: mycar
+    name: "Stored PCM failure"
+    mode: "03"
+    code: "P0010"
+    
+text_sensor:
+  - platform: wifi_info
+    ssid:
+      name: "Current SSID"
+      icon: mdi:wifi    
